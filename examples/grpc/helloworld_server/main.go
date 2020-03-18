@@ -24,6 +24,8 @@ import (
 	"net/http"
 	"time"
 
+	"contrib.go.opencensus.io/exporter/stackdriver"
+	"contrib.go.opencensus.io/exporter/stackdriver/monitoredresource"
 	"go.opencensus.io/examples/exporter"
 	pb "go.opencensus.io/examples/grpc/proto"
 	"go.opencensus.io/plugin/ocgrpc"
@@ -54,15 +56,25 @@ func main() {
 		log.Fatal(http.ListenAndServe("127.0.0.1:8081", mux))
 	}()
 
+	trace.ApplyConfig(trace.Config{DefaultSampler: trace.AlwaysSample()})
+
 	// Register stats and trace exporters to export
 	// the collected data.
 	view.RegisterExporter(&exporter.PrintExporter{})
+	se, err := stackdriver.NewExporter(stackdriver.Options{
+		ProjectID:         "YOUR_PROJECT_ID", // Google Cloud Console project ID for stackdriver.
+		MonitoredResource: monitoredresource.Autodetect(),
+	})
+	se.StartMetricsExporter()
+	defer se.StopMetricsExporter()
 
 	// Register the views to collect server request count.
 	if err := view.Register(ocgrpc.DefaultServerViews...); err != nil {
 		log.Fatal(err)
 	}
 
+	trace.RegisterExporter(se)
+	
 	lis, err := net.Listen("tcp", port)
 	if err != nil {
 		log.Fatalf("Failed to listen: %v", err)

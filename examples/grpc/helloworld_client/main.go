@@ -16,10 +16,13 @@ package main
 
 import (
 	"context"
+	"go.opencensus.io/trace"
 	"log"
 	"os"
 	"time"
 
+	"contrib.go.opencensus.io/exporter/stackdriver"
+	"contrib.go.opencensus.io/exporter/stackdriver/monitoredresource"
 	"go.opencensus.io/examples/exporter"
 	pb "go.opencensus.io/examples/grpc/proto"
 	"go.opencensus.io/plugin/ocgrpc"
@@ -33,14 +36,24 @@ const (
 )
 
 func main() {
+	trace.ApplyConfig(trace.Config{DefaultSampler: trace.AlwaysSample()})
+
 	// Register stats and trace exporters to export
 	// the collected data.
 	view.RegisterExporter(&exporter.PrintExporter{})
+	se, err := stackdriver.NewExporter(stackdriver.Options{
+		ProjectID:         "YOUR_PROJECT_ID", // Google Cloud Console project ID for stackdriver.
+		MonitoredResource: monitoredresource.Autodetect(),
+	})
+	se.StartMetricsExporter()
+	defer se.StopMetricsExporter()
 
 	// Register the view to collect gRPC client stats.
 	if err := view.Register(ocgrpc.DefaultClientViews...); err != nil {
 		log.Fatal(err)
 	}
+
+	trace.RegisterExporter(se)
 
 	// Set up a connection to the server with the OpenCensus
 	// stats handler to enable stats and tracing.
@@ -64,6 +77,6 @@ func main() {
 		} else {
 			log.Printf("Greeting: %s", r.Message)
 		}
-		time.Sleep(2 * time.Second)
+		time.Sleep(30 * time.Second)
 	}
 }
