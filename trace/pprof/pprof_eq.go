@@ -12,40 +12,32 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package trace
+package main
 
-type evictedQueue struct {
-	queue        []interface{}
-	capacity     int
-	droppedCount int
+import (
+	"fmt"
+	_ "net/http/pprof"
+	"go.opencensus.io/trace"
+	//_ "github.com/pkg/profile"
+	"net/http"
+)
+
+func init() {
 }
-
-func newEvictedQueue(capacity int) *evictedQueue {
-	eq := &evictedQueue{
-		capacity: capacity,
-		queue:    make([]interface{}, 0),
+var qs []*trace.EQ
+func save(q *trace.EQ) {
+	qs = append(qs,q)
+}
+func main() {
+	//defer profile.Start(profile.MemProfile).Stop()
+	for i := 0 ; i < 1000000 ; i++ {
+		c := 30
+		q := trace.NewEQ(30)
+		save(q)
+		for j := 0 ; j < 4*c ; j++ {
+			q.Add(j)
+		}
 	}
-
-	return eq
-}
-
-func (eq *evictedQueue) add(value interface{}) {
-	if len(eq.queue) == eq.capacity {
-		eq.queue = eq.queue[1:]
-		eq.droppedCount++
-	}
-	eq.queue = append(eq.queue, value)
-}
-
-type EQ struct {
-	eq *evictedQueue;
-}
-
-func NewEQ(c int) *EQ {
-	return &EQ{
-		eq : newEvictedQueue(c),
-	}
-}
-func (e *EQ) Add (value interface{}) {
-	e.eq.add(value)
+	fmt.Println("work done")
+	http.ListenAndServe("localhost:8080", nil)
 }
