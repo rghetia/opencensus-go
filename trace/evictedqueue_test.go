@@ -63,3 +63,45 @@ func TestDropCount(t *testing.T) {
 		t.Errorf("got array = %#v; want %#v", gotArr, wantArr)
 	}
 }
+
+func BenchmarkDropCount(b *testing.B) {
+	testcases := []struct {
+		name string
+		cap  int
+		add  int
+	}{
+		{
+			name: "cap-5-add-10",
+			cap:  5,
+			add:  10,
+		},
+		{
+			name: "cap-10-add-20",
+			cap:  10,
+			add:  20,
+		},
+		{
+			name: "cap-30-add-40",
+			cap:  30,
+			add:  40,
+		},
+		{
+			name: "cap-40-add-50",
+			cap:  40,
+			add:  50,
+		},
+	}
+
+	for _, tc := range testcases {
+		b.Run(tc.name, func(b *testing.B) {
+			b.ResetTimer()
+			b.ReportAllocs()
+			q := newEvictedQueue(tc.cap)
+			for i := 0; i < b.N; i++ {
+				for i := 0; i < tc.add; i++ {
+					q.add("value1")
+				}
+			}
+		})
+	}
+}
