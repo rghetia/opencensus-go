@@ -20,6 +20,7 @@ import (
 	"regexp"
 	"time"
 
+	"go.opencensus.io/metric/metricdata"
 	"go.opencensus.io/stats/view"
 	"go.opencensus.io/trace"
 )
@@ -39,6 +40,23 @@ var reZero = regexp.MustCompile(`^0+$`)
 // This should NOT be used for production workloads.
 type PrintExporter struct{}
 
+func printExemplar (v *view.DistributionData) string {
+	var exemplar string
+	for _, bucket := range v.ExemplarsPerBucket {
+		if bucket != nil {
+			ctx, ok := bucket.Attachments[metricdata.AttachmentKeySpanContext]
+			if ok {
+				switch c := ctx.(type) {
+				case trace.SpanContext:
+					exemplar = exemplar + "," + hex.EncodeToString(c.TraceID[:]) +
+							":" + hex.EncodeToString(c.SpanID[:])
+				}
+			}
+		}
+	}
+	return exemplar
+}
+
 // ExportView logs the view data.
 func (e *PrintExporter) ExportView(vd *view.Data) {
 	for _, row := range vd.Rows {
@@ -46,7 +64,7 @@ func (e *PrintExporter) ExportView(vd *view.Data) {
 
 		switch v := row.Data.(type) {
 		case *view.DistributionData:
-			fmt.Printf("distribution: min=%.1f max=%.1f mean=%.1f", v.Min, v.Max, v.Mean)
+			fmt.Printf("distribution: min=%.1f max=%.1f mean=%.1f, exemplar=%s", v.Min, v.Max, v.Mean, printExemplar(v))
 		case *view.CountData:
 			fmt.Printf("count:        value=%v", v.Value)
 		case *view.SumData:
